@@ -5,11 +5,14 @@ import { getAuth } from 'firebase/auth';
 const Channel = ({ db, darkMode }) => {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
+    const user = getAuth().currentUser; // Get the current user
 
     // Fetch messages from Firestore
     useEffect(() => {
         const unsubscribe = onSnapshot(collection(db, 'messages'), (snapshot) => {
             const messagesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Sort messages by createdAt timestamp
+            messagesData.sort((a, b) => a.createdAt - b.createdAt);
             setMessages(messagesData);
         });
 
@@ -21,7 +24,6 @@ const Channel = ({ db, darkMode }) => {
         e.preventDefault();
         if (newMessage.trim() === '') return; // Prevent sending empty messages
 
-        const user = getAuth().currentUser; // Get the current user
         if (user) {
             try {
                 await addDoc(collection(db, 'messages'), {
@@ -29,7 +31,7 @@ const Channel = ({ db, darkMode }) => {
                     uid: user.uid,
                     userName: user.displayName,
                     userImage: user.photoURL,
-                    createdAt: new Date(),
+                    createdAt: new Date(), // Store the timestamp
                 });
                 setNewMessage(''); // Clear input field
             } catch (error) {
@@ -43,15 +45,15 @@ const Channel = ({ db, darkMode }) => {
             <h2 className="text-xl font-semibold mb-2">Chat Room</h2>
             <div className={`bg-gray-100 dark:bg-gray-800 rounded-lg p-4 h-96 overflow-y-auto shadow-lg ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
                 {messages.map(message => (
-                    <div key={message.id} className="flex items-center mb-2">
-                        {message.userImage && (
+                    <div key={message.id} className={`flex items-center mb-2 ${message.uid === user?.uid ? 'justify-end' : 'justify-start'}`}>
+                        {message.uid !== user?.uid && message.userImage && (
                             <img
                                 src={message.userImage}
                                 alt={message.userName}
                                 className="w-8 h-8 rounded-full mr-2"
                             />
                         )}
-                        <div className={`rounded-lg p-2 ${darkMode ? 'bg-gray-700' : 'bg-blue-200'} text-black`}>
+                        <div className={`rounded-lg p-2 ${message.uid === user?.uid ? 'bg-blue-500 text-white' : (darkMode ? 'bg-gray-700' : 'bg-blue-200')} text-black`}>
                             <strong>{message.userName}</strong>
                             <p className={`text-gray-700 ${darkMode ? 'text-gray-300' : 'text-black'}`}>{message.text}</p>
                         </div>
